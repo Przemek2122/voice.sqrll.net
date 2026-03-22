@@ -5,8 +5,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     const stopBtn = document.getElementById('stopBtn');
     const statusDiv = document.getElementById('status');
     const micSelect = document.getElementById('micSelect');
+    const localMeter = document.getElementById('localMeter');
+    const remoteMeter = document.getElementById('remoteMeter');
+    const sentRateEl = document.getElementById('sentRate');
+    const recvRateEl = document.getElementById('recvRate');
 
     let streamer = null;
+    let meterAnimId = null;
+
+    // --- Volume meter & stats animation loop ---
+    function formatRate(bytesPerSec) {
+        if (bytesPerSec >= 1048576) return (bytesPerSec / 1048576).toFixed(1) + ' MB/s';
+        if (bytesPerSec >= 1024) return (bytesPerSec / 1024).toFixed(1) + ' KB/s';
+        return Math.round(bytesPerSec) + ' B/s';
+    }
+
+    function updateMeters() {
+        if (streamer) {
+            localMeter.style.width = streamer.getLocalLevel() + '%';
+            remoteMeter.style.width = streamer.getRemoteLevel() + '%';
+
+            const stats = streamer.getStats();
+            sentRateEl.textContent = formatRate(stats.sentPerSec);
+            recvRateEl.textContent = formatRate(stats.recvPerSec);
+        }
+        meterAnimId = requestAnimationFrame(updateMeters);
+    }
+
+    function stopMeters() {
+        if (meterAnimId) {
+            cancelAnimationFrame(meterAnimId);
+            meterAnimId = null;
+        }
+        localMeter.style.width = '0%';
+        remoteMeter.style.width = '0%';
+        sentRateEl.textContent = '0 KB/s';
+        recvRateEl.textContent = '0 KB/s';
+    }
 
     // --- Microphone enumeration ---
     async function populateMicList() {
@@ -65,7 +100,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Start / Stop ---
     startBtn.onclick = async () => {
+        const remoteAudio = document.getElementById('remoteAudio');
         streamer = new AudioStreamer('ws://localhost:8080/stream');
+        streamer.setAudioElement(remoteAudio);
         streamer.setDeviceId(micSelect.value);
 
         await streamer.start(
@@ -73,6 +110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 statusDiv.innerText = "Connected to Go server! Sending audio...";
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
+                updateMeters();
             },
             () => {
                 statusDiv.innerText = "Disconnected from server.";
@@ -84,6 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     stopBtn.onclick = () => {
+        stopMeters();
         if (streamer) {
             streamer.stop();
             streamer = null;

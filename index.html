@@ -22,6 +22,27 @@
 
     <div id="status">Waiting for action...</div>
 
+    <div id="meters">
+        <div class="meter">
+            <span class="meter-label">🎤 Local</span>
+            <div class="meter-track">
+                <div class="meter-fill" id="localMeter"></div>
+            </div>
+        </div>
+        <div class="meter">
+            <span class="meter-label">🔊 Remote</span>
+            <div class="meter-track">
+                <div class="meter-fill meter-fill--remote" id="remoteMeter"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="stats">
+        <span>⬆ Sent: <strong id="sentRate">0 KB/s</strong></span>
+        <span>⬇ Recv: <strong id="recvRate">0 KB/s</strong></span>
+    </div>
+
+    <audio id="remoteAudio" autoplay></audio>
     <script type="module" src="js/main.js"></script>
 </body>
 
