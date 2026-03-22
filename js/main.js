@@ -9,9 +9,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     const remoteMeter = document.getElementById('remoteMeter');
     const sentRateEl = document.getElementById('sentRate');
     const recvRateEl = document.getElementById('recvRate');
+    const bitrateEl = document.getElementById('bitrate');
+    const sampleRateEl = document.getElementById('sampleRate');
+    const channelsEl = document.getElementById('channels');
+    const timesliceEl = document.getElementById('timeslice');
+    const settingsPanel = document.getElementById('settingsPanel');
+    const muteMicEl = document.getElementById('muteMic');
+    const muteSpeakersEl = document.getElementById('muteSpeakers');
 
     let streamer = null;
     let meterAnimId = null;
+
+    // --- Mute controls ---
+    muteMicEl.onchange = () => {
+        if (streamer) streamer.muteMic(muteMicEl.checked);
+    };
+    muteSpeakersEl.onchange = () => {
+        if (streamer) streamer.muteSpeakers(muteSpeakersEl.checked);
+    };
 
     // --- Volume meter & stats animation loop ---
     function formatRate(bytesPerSec) {
@@ -104,6 +119,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         streamer = new AudioStreamer('ws://localhost:8080/stream');
         streamer.setAudioElement(remoteAudio);
         streamer.setDeviceId(micSelect.value);
+        streamer.setConfig({
+            bitrate: parseInt(bitrateEl.value),
+            sampleRate: parseInt(sampleRateEl.value),
+            channelCount: parseInt(channelsEl.value),
+            timeslice: parseInt(timesliceEl.value),
+        });
+
+        // Disable settings while recording
+        settingsPanel.querySelectorAll('select').forEach(s => s.disabled = true);
 
         await streamer.start(
             () => {
@@ -130,5 +154,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         startBtn.disabled = false;
         stopBtn.disabled = true;
         statusDiv.innerText = "Stopped.";
+        settingsPanel.querySelectorAll('select').forEach(s => s.disabled = false);
     };
 });

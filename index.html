@@ -17,8 +17,52 @@
         </select>
     </div>
 
+    <details id="settingsPanel">
+        <summary>⚙️ Audio settings</summary>
+        <div class="settings-grid">
+            <label for="bitrate">Bitrate</label>
+            <select id="bitrate">
+                <option value="8000">8 kbps (low)</option>
+                <option value="16000">16 kbps</option>
+                <option value="32000" selected>32 kbps</option>
+                <option value="64000">64 kbps</option>
+                <option value="128000">128 kbps (high)</option>
+                <option value="256000">256 kbps</option>
+            </select>
+
+            <label for="sampleRate">Sample rate</label>
+            <select id="sampleRate">
+                <option value="8000">8 kHz (phone)</option>
+                <option value="16000">16 kHz</option>
+                <option value="22050">22.05 kHz</option>
+                <option value="44100">44.1 kHz</option>
+                <option value="48000" selected>48 kHz (default)</option>
+            </select>
+
+            <label for="channels">Channels</label>
+            <select id="channels">
+                <option value="1" selected>Mono</option>
+                <option value="2">Stereo</option>
+            </select>
+
+            <label for="timeslice">Chunk interval</label>
+            <select id="timeslice">
+                <option value="100">100 ms</option>
+                <option value="150">150 ms</option>
+                <option value="250" selected>250 ms</option>
+                <option value="500">500 ms</option>
+                <option value="1000">1000 ms</option>
+            </select>
+        </div>
+    </details>
+
     <button id="startBtn">Start Recording</button>
     <button id="stopBtn" disabled>Stop</button>
+
+    <div id="muteControls">
+        <label><input type="checkbox" id="muteMic"> 🔇 Mute mic</label>
+        <label><input type="checkbox" id="muteSpeakers"> 🔇 Mute speakers</label>
+    </div>
 
     <div id="status">Waiting for action...</div>
 

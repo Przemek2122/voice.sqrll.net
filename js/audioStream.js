@@ -1,5 +1,11 @@
 const MIME_TYPE = 'audio/webm;codecs=opus';
-const TIMESLICE_MS = 250;
+
+const DEFAULT_CONFIG = {
+    bitrate: 32000,
+    sampleRate: 48000,
+    channelCount: 1,
+    timeslice: 250,
+};
 
 export class AudioStreamer {
     constructor(url) {
@@ -7,6 +13,7 @@ export class AudioStreamer {
         this.mediaRecorder = null;
         this.websocket = null;
         this.deviceId = null;
+        this.config = { ...DEFAULT_CONFIG };
 
         // Playback state
         this.audioElement = null;
@@ -37,10 +44,33 @@ export class AudioStreamer {
         this.audioElement = audioElement;
     }
 
+    setConfig(config) {
+        this.config = { ...DEFAULT_CONFIG, ...config };
+    }
+
     _getAudioConstraints() {
-        return this.deviceId
-            ? { audio: { deviceId: { exact: this.deviceId } } }
-            : { audio: true };
+        const audio = {
+            sampleRate: this.config.sampleRate,
+            channelCount: this.config.channelCount,
+        };
+        if (this.deviceId) {
+            audio.deviceId = { exact: this.deviceId };
+        }
+        return { audio };
+    }
+
+    muteMic(muted) {
+        if (this.mediaRecorder && this.mediaRecorder.stream) {
+            this.mediaRecorder.stream.getAudioTracks().forEach(track => {
+                track.enabled = !muted;
+            });
+        }
+    }
+
+    muteSpeakers(muted) {
+        if (this.audioElement) {
+            this.audioElement.muted = muted;
+        }
     }
 
     // --- Audio context & analysers ---
@@ -160,7 +190,10 @@ export class AudioStreamer {
         // Setup analyser for local mic
         this._setupLocalAnalyser(stream);
 
-        this.mediaRecorder = new MediaRecorder(stream, { mimeType: MIME_TYPE });
+        this.mediaRecorder = new MediaRecorder(stream, {
+            mimeType: MIME_TYPE,
+            audioBitsPerSecond: this.config.bitrate,
+        });
 
         this.mediaRecorder.ondataavailable = (event) => {
             if (event.data.size > 0 && this.websocket && this.websocket.readyState === WebSocket.OPEN) {
@@ -169,7 +202,7 @@ export class AudioStreamer {
             }
         };
 
-        this.mediaRecorder.start(TIMESLICE_MS);
+        this.mediaRecorder.start(this.config.timeslice);
     }
 
     // --- Main start ---

@@ -17,6 +17,60 @@ button {
     color: #333;
 }
 
+#muteControls {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin: 10px 0;
+    font-size: 14px;
+}
+
+#muteControls label {
+    cursor: pointer;
+    user-select: none;
+    color: #555;
+}
+
+/* --- Settings panel --- */
+#settingsPanel {
+    max-width: 400px;
+    margin: 12px auto;
+    text-align: left;
+    font-size: 14px;
+}
+
+#settingsPanel summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #555;
+    text-align: center;
+    padding: 6px;
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px 12px;
+    align-items: center;
+    margin-top: 8px;
+    padding: 10px;
+    background: #f8f8f8;
+    border-radius: 8px;
+}
+
+.settings-grid label {
+    font-weight: 500;
+    color: #555;
+    text-align: right;
+}
+
+.settings-grid select {
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
 /* --- Audio level meters --- */
 #meters {
     display: flex;
