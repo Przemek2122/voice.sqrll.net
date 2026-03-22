@@ -48,6 +48,10 @@ export class AudioStreamer {
         if (!this.audioContext) {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         }
+        // Browsers suspend AudioContext until user interaction
+        if (this.audioContext.state === 'suspended') {
+            this.audioContext.resume();
+        }
     }
 
     _setupLocalAnalyser(stream) {
@@ -111,6 +115,11 @@ export class AudioStreamer {
 
     // --- Playback via MediaSource ---
     _setupPlayback() {
+        if (!MediaSource.isTypeSupported(MIME_TYPE)) {
+            console.warn('MediaSource does not support:', MIME_TYPE);
+        }
+
+        this._playbackStarted = false;
         this.mediaSource = new MediaSource();
         this.audioElement.src = URL.createObjectURL(this.mediaSource);
 
@@ -118,10 +127,15 @@ export class AudioStreamer {
             console.log('MediaSource opened. Creating SourceBuffer.');
             this.sourceBuffer = this.mediaSource.addSourceBuffer(MIME_TYPE);
             this.sourceBuffer.mode = 'sequence';
-            this.sourceBuffer.addEventListener('updateend', () => this._processQueue());
-
-            // Setup remote analyser after MediaSource is ready
-            this._setupRemoteAnalyser();
+            this.sourceBuffer.addEventListener('updateend', () => {
+                // Start playback after the first chunk is buffered
+                if (!this._playbackStarted) {
+                    this._playbackStarted = true;
+                    this._setupRemoteAnalyser();
+                    this.audioElement.play().catch(e => console.warn('Audio play failed:', e));
+                }
+                this._processQueue();
+            });
         });
     }
 
