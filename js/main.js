@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const stopBtn = document.getElementById('stopBtn');
     const statusDiv = document.getElementById('status');
     const micSelect = document.getElementById('micSelect');
+    const speakerSelect = document.getElementById('speakerSelect');
+    const userIdInput = document.getElementById('userId');
     const localMeter = document.getElementById('localMeter');
     const remoteMeter = document.getElementById('remoteMeter');
     const sentRateEl = document.getElementById('sentRate');
@@ -58,26 +60,50 @@ document.addEventListener('DOMContentLoaded', async () => {
         recvRateEl.textContent = '0 KB/s';
     }
 
-    // --- Microphone enumeration ---
-    async function populateMicList() {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const audioInputs = devices.filter(d => d.kind === 'audioinput');
-
-        micSelect.innerHTML = '';
-
-        if (audioInputs.length === 0) {
-            micSelect.innerHTML = '<option value="">No microphones found</option>';
+    // --- Device enumeration ---
+    function buildDeviceOptions(deviceList, selectEl, fallbackPrefix) {
+        selectEl.innerHTML = '';
+        if (deviceList.length === 0) {
+            selectEl.innerHTML = `<option value="">No ${fallbackPrefix.toLowerCase()}s found</option>`;
             return;
         }
 
-        audioInputs.forEach((device, i) => {
+        // Add "System Default" as the first option — uses the OS default device
+        const defaultEntry = deviceList.find(d => d.deviceId === 'default');
+        if (defaultEntry) {
+            const opt = document.createElement('option');
+            opt.value = 'default';
+            // Extract the real device name from the default label if available
+            // Chrome formats it as "Default - <device name>"
+            const cleanLabel = defaultEntry.label
+                ? defaultEntry.label.replace(/^Default\s*-\s*/i, '').trim()
+                : '';
+            opt.textContent = cleanLabel
+                ? `System Default — ${cleanLabel}`
+                : `System Default`;
+            opt.selected = true;
+            selectEl.appendChild(opt);
+        }
+
+        // List all real devices (skip 'default' and 'communications' pseudo-entries)
+        const realDevices = deviceList.filter(d =>
+            d.deviceId !== 'default' && d.deviceId !== 'communications'
+        );
+
+        realDevices.forEach((device, i) => {
             const option = document.createElement('option');
             option.value = device.deviceId;
-            option.textContent = device.label || `Microphone ${i + 1}`;
-            micSelect.appendChild(option);
+            option.textContent = device.label || `${fallbackPrefix} ${i + 1}`;
+            selectEl.appendChild(option);
         });
 
-        micSelect.disabled = false;
+        selectEl.disabled = false;
+    }
+
+    async function populateDeviceLists() {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        buildDeviceOptions(devices.filter(d => d.kind === 'audioinput'), micSelect, 'Microphone');
+        buildDeviceOptions(devices.filter(d => d.kind === 'audiooutput'), speakerSelect, 'Speaker');
     }
 
     // --- Permission & device init ---
@@ -88,7 +114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             permissionStream.getTracks().forEach(track => track.stop());
-            await populateMicList();
+            await populateDeviceLists();
             statusDiv.innerText = "Microphone access granted. Ready to record.";
         } catch (err) {
             statusDiv.innerText = "Microphone permission denied: " + err.message;
@@ -98,7 +124,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Re-populate mic list when devices change (e.g. plugging in a USB mic)
     if (navigator.mediaDevices) {
-        navigator.mediaDevices.ondevicechange = () => populateMicList();
+        navigator.mediaDevices.ondevicechange = () => populateDeviceLists();
     }
 
     // --- Mic switching during stream ---
@@ -113,11 +139,41 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
+    // --- Speaker switching (apply to all remote <audio> elements) ---
+    speakerSelect.onchange = async () => {
+        if (!streamer) return;
+        for (const player of streamer.players.values()) {
+            if (player.audioElement && typeof player.audioElement.setSinkId === 'function') {
+                try {
+                    await player.audioElement.setSinkId(speakerSelect.value);
+                } catch (err) {
+                    console.warn('Error switching speaker for user', player.userId, err);
+                }
+            }
+        }
+        statusDiv.innerText = "Switched speaker output.";
+    };
+
     // --- Start / Stop ---
     startBtn.onclick = async () => {
-        const remoteAudio = document.getElementById('remoteAudio');
-        streamer = new AudioStreamer('ws://localhost:8080/stream');
-        streamer.setAudioElement(remoteAudio);
+        // Container for dynamically created remote <audio> elements
+        let audioContainer = document.getElementById('remoteAudioContainer');
+        if (!audioContainer) {
+            audioContainer = document.createElement('div');
+            audioContainer.id = 'remoteAudioContainer';
+            audioContainer.style.display = 'none'; // hidden — audio only
+            document.body.appendChild(audioContainer);
+        }
+
+        const odGive = userIdInput.value.trim();
+        if (!odGive) {
+            statusDiv.innerText = '⚠️ Please enter a User ID before starting.';
+            return;
+        }
+
+        const wsUrl = `ws://localhost:8080/api/rooms/stream?room=test&token=test&userid=${encodeURIComponent(odGive)}`;
+        streamer = new AudioStreamer(wsUrl);
+        streamer.setAudioContainer(audioContainer);
         streamer.setDeviceId(micSelect.value);
         streamer.setConfig({
             bitrate: parseInt(bitrateEl.value),
